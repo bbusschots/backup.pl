@@ -1,0 +1,25 @@
+// sample config file
+{
+	"localPaths": {
+		"ssh": "/usr/bin/ssh",
+		"scp": "/usr/bin/scp",
+		"rsync": "/usr/bin/rsync",
+		"mkdir": "/bin/mkdir",
+		"backupBaseDir": "/var/backup/mybackup/"
+	},
+	"servers": [
+		{
+			"fqdn": "myserver.com",
+			"sshUsername": "backup",
+			"remotePaths": {
+				"stagingDir": "/var/backupStaging/"
+			},
+			"backup_MySQL": {
+				"dumpAllDBs": true,
+				"mysqldump": "/usr/bin/mysqldump",
+				"user": "root",
+				"password": "mysql_root_password"
+			},
+		}
+	]
+}
