@@ -95,7 +95,7 @@ unless(defined $config->{localPaths}->{backupBaseDir} && -d $config->{localPaths
 # Calculate which of the rolling backups to target
 #
 my @days = qw{Sun Mon Tue Wed Thur Fri Sat};
-my @datetime = localtime(time);
+my @datetime = localtime time;
 my $daily_backup_dir = $config->{localPaths}->{backupBaseDir}.$days[$datetime[6]].q{/};
 print "INFO - daily backup dir calculated: $daily_backup_dir\n" if $verbose;
 # make sure the daily directory exists, if not, try create it
@@ -116,10 +116,12 @@ unless(-d $daily_backup_dir){
 SERVER:
 foreach my $server (@{$config->{servers}}){
 	# make sure we have at least a possibly valid server definition
+	## no critic (ProhibitEnumeratedClasses);
 	unless(defined $server->{fqdn} && $server->{fqdn} =~ m/^[-a-zA-Z0-9.]+$/sx && defined $server->{sshUsername} && $server->{sshUsername} =~ m/^[a-zA-Z0-9_]+$/sx){
 		print "\nERROR - found invalid or incomplete server definition - skipping\n";
 		next SERVER;
 	}
+	## use critic
 	
 	print "\n*** SERVER=$server->{fqdn} (as $server->{sshUsername}) ***\n";
 	

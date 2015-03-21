@@ -122,6 +122,10 @@ a type of backup:
   and download `.svndump` files for one or more folderes of SVN reposotories.
   (See the sample config file for details.)
   
+If you don't want to perform any of these tasks, simply leave out the relevant
+hashref, or alternatively, leave the entries in place but
+keep the `folders` array empty (not applicable to the MySQL section).
+  
 ## Other Notes
 
 ### Connecting on a non-standard SSH port
