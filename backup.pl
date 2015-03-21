@@ -98,9 +98,16 @@ my @days = qw{Sun Mon Tue Wed Thur Fri Sat};
 my @datetime = localtime(time);
 my $daily_backup_dir = $config->{localPaths}->{backupBaseDir}.$days[$datetime[6]].q{/};
 print "INFO - daily backup dir calculated: $daily_backup_dir\n" if $verbose;
+# make sure the daily directory exists, if not, try create it
 unless(-d $daily_backup_dir){
-	print "FATAL ERROR - daily backup dir $daily_backup_dir does not exist\n";
-	exit 1;
+	unless(-d $daily_backup_dir){
+		print "Creating daily backup dir ...\n";
+		my $cout = exec_command(qq{$MKDIR }.shell_quote($daily_backup_dir));
+		unless($cout->{success}){
+			print "\nFATAL ERROR - failed to create daily backup dir $daily_backup_dir\n";
+			exit 1;
+		}
+	}
 }
 
 #
