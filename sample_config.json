@@ -20,6 +20,20 @@
 				"user": "root",
 				"password": "mysql_root_password"
 			},
+			"backup_tar": {
+				"tar": "/bin/tar",
+				"folders": {
+					"etc_httpd": "/etc/httpd/",
+					"var_www": "/var/www/"
+				}
+			},
+			"backup_svndump": {
+				"svnadmin": "/usr/bin/svnadmin",
+				"ls": "/bin/ls",
+				"folders": {
+					"my_repos": "/home/username/svnrepos/"
+				}
+			}
 		}
 	]
 }

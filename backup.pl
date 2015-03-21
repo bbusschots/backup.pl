@@ -166,104 +166,121 @@ foreach my $server (@{$config->{servers}}){
 		print "\nINFO - skipping MySQL DB backup - not configured\n" if $verbose;
 	}
 	
-#	# if configured, try create and download TAR backups
-#	if(defined $server->{backup_tar} && defined $server->{backup_tar}->{folders} && ref $server->{backup_tar}->{folders} eq 'HASH' && scalar keys %{$server->{backup_tar}->{folders}}){
-#		print "\n* Prossing TAR Folder Backups *\n";
+	# if configured, try create and download TAR backups
+	if(defined $server->{backup_tar} && defined $server->{backup_tar}->{folders} && ref $server->{backup_tar}->{folders} eq 'HASH' && scalar keys %{$server->{backup_tar}->{folders}}){
+		print "\n* Prossing TAR Folder Backups *\n";
+		
+		# try to process the backups
+		eval{
+			# make sure we have all the prerequisites
+			unless(defined $server->{remotePaths}->{stagingDir}){
+				croak(q{remote staging dir not defined});
+			}
+			unless(defined $server->{backup_tar}->{tar}){
+				croak(q{remote tar path not specified});
+			}
+			
+			# generate the path to save the tar files to, and make sure it exists
+			my $tar_base_dir = $server_backup_dir.'tar/';
+			unless(-d $tar_base_dir){
+				print "Creating folder for storing TAR files ...\n";
+				my $cout = exec_command(qq{$MKDIR }.shell_quote($tar_base_dir));
+				unless($cout->{success}){
+					croak("failed to create folder $tar_base_dir");
+				}
+			}
+			print "INFO - saving archives to $tar_base_dir\n" if $verbose;
+			
+			# process each specified folder
+			foreach my $tar_set (sort keys %{$server->{backup_tar}->{folders}}){
+   				my $tar_file = $tar_set.'.tar.gz';
+			    my $tar_folder = $server->{backup_tar}->{folders}->{$tar_set};
+   
+			    # first call TAR on the server
+			    print "Generating $tar_file from $tar_folder ...\n";
+			    my $remote_cmd = shell_quote($server->{backup_tar}->{tar}).q{ -pczf }.shell_quote($server->{remotePaths}->{stagingDir}.$tar_file).q{ }.shell_quote($tar_folder);
+			    my $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd));
+    			if($cout->{success}){
+	        		# then scp down the file
+		    	    print "Downloading $tar_file ...\n";
+		    	    exec_command(assemble_scp_download($server->{sshUsername}, $server->{fqdn}, $server->{remotePaths}->{stagingDir}.$tar_file, $tar_base_dir));
+    			}
+			}
+			
+			1; # ensure truthy evaluation on successful execution
+		}or do{
+			print "ERROR - failed to TAR folders with error: $EVAL_ERROR\n";
+		};
+	}else{
+		print "\nINFO - skipping TAR backup - not configured\n" if $verbose;
+	}
+
+	# if configured, try rsync backups
+	# TO DO
+	
+	# if configured, try create and download SVN dumps
+	if(defined $server->{backup_svndump} && defined $server->{backup_svndump}->{folders} && ref $server->{backup_svndump}->{folders} eq 'HASH' && scalar keys %{$server->{backup_svndump}->{folders}}){
+		print "\n* Prossing SVN Backups *\n";
+		
+		# try to process the backups
+		eval{
+			# make sure we have all the prerequisites
+			unless(defined $server->{remotePaths}->{stagingDir}){
+				croak(q{remote staging dir not defined});
+			}
+			unless(defined $server->{backup_svndump}->{svnadmin}){
+				croak(q{remote svnadmin path not specified});
+			}
+			unless(defined $server->{backup_svndump}->{ls}){
+				croak(q{remote ls path not specified});
+			}
+			
+			# generate path to save svn dumps to, and make sure it exists
+			my $svn_base_dir = $server_backup_dir.'svn/';
+			unless(-d $svn_base_dir){
+				print "Creating folder for storing SVN dump files ...\n";
+				my $cout = exec_command(qq{$MKDIR }.shell_quote($svn_base_dir));
+				unless($cout->{success}){
+					croak("failed to create folder $svn_base_dir");
+				}
+			}
+			print "INFO - saving SVN dumps to $svn_base_dir\n" if $verbose;
+			
+			# loop through all the folders of SVN Repos
+			foreach my $svn_set (sort keys %{$server->{backup_svndump}->{folders}}){
+			    my $svn_folder = $server->{backup_svndump}->{folders}->{$svn_set};
+	   			print "Backing Up SVN Repos under $svn_folder ...\n";
+    
+			    # first get a list of all the repos in this set
+			    my $remote_cmd = shell_quote($server->{backup_svndump}->{ls}).q{ -1 }.shell_quote($svn_folder);
+			    my $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd), 1);
+			    my @repos = split /\n/sx, $cout->{stdout};
+   
+			    # then loop through all the repos and back them up
+			    foreach my $repo (@repos){
+			        my $repo_dir = $svn_folder.$repo.q{/};
+			        my $dump_file = $server->{remotePaths}->{stagingDir}.$svn_set.q{_}.$repo.q{.svndump};
+       
+        			# first dump the repo
+			        print "\tDumping repo $repo_dir to $dump_file...\n";
+			        $remote_cmd = shell_quote($server->{backup_svndump}->{svnadmin}).q{ dump }.shell_quote($repo_dir).q{ --quiet > }.shell_quote($dump_file);
+			        $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd));
+        			if($cout->{success}){
+			            # if that went OK, download it
+	           			print "\tDownloading $dump_file ...\n";
+	           			exec_command(assemble_scp_download($server->{sshUsername}, $server->{fqdn}, $dump_file, $svn_base_dir));
+        			}
+			    }
+			}
+			
+			1; # ensure truthy evaluation on successful execution
+		}or do{
+			print "ERROR - failed to process SVN backups with error: $EVAL_ERROR\n";
+		};
 #		
-#		# try to process the backups
-#		eval{
-#			# make sure we have all the prerequisites
-#			unless(defined $server->{remotePaths}->{stagingDir}){
-#				croak(q{remote staging dir not defined});
-#			}
-#			unless(defined $server->{backup_tar}->{tar}){
-#				croak(q{remote tar path not specified});
-#			}
-#			
-#			# generate the path to save the tar files to
-#			my $tar_base_dir = $server_backup_dir.'tar/';
-#			print "INFO - saving archives to $tar_base_dir\n" if $verbose;
-#			
-#			# process each specified folder
-#			foreach my $tar_set (sort keys %{$server->{backup_tar}->{folders}){
-#   			my $tar_file = $tar_set.'.tar.gz';
-#			    my $tar_folder = $server->{backup_tar}->{folders}->{$tar_set};
-#   
-#			    # first call TAR on the server
-#			    print "Generating $tar_file from $tar_folder ...\n";
-#   			my $cout = exec_command(qq{$SSH $server->{sshUsername}\@$server->{fqdn} "$server->{backup_tar}->{tar} -pczf $server->{remotePaths}->{stagingDir}$tar_file $tar_folder"});
-#    			if($cout->{success}){
-#	        		# then scp down the file
-#		    	    print "Downloading $tar_file ...\n";
-#       			exec_command("$SCP -q $REMOTE_USER\@$REMOTE_SERVER:$REMOTE_STAGING_DIR$tar_file $tar_base_dir");
-#    			}
-#			}
-#			
-#			1; # ensure truthy evaluation on successful execution
-#		}or do{
-#			print "ERROR - failed to TAR folders with error: $EVAL_ERROR\n";
-#		};
-#	}else{
-#		print "\nINFO - skipping TAR backup - not configured\n" if $verbose;
-#	}
-#	
-#	# if configured, try rsync backups
-#	# TO DO
-#	
-#	# if configured, try create and download SVN dumps
-#	if(defined $server->{backup_svndump} && defined $server->{backup_svndump}->{folders} && ref $server->{backup_svndump}->{folders} eq 'HASH' && scalar keys %{$server->{backup_svndump}->{folders}}){
-#		print "\n* Prossing SVN Backups *\n";
-#		
-#		# try to process the backups
-#		eval{
-#			# make sure we have all the prerequisites
-#			unless(defined $server->{remotePaths}->{stagingDir}){
-#				croak(q{remote staging dir not defined});
-#			}
-#			unless(defined $server->{backup_svndump}->{svnadmin}){
-#				croak(q{remote svnadmin path not specified});
-#			}
-#			unless(defined $server->{backup_svndump}->{ls}){
-#				croak(q{remote ls path not specified});
-#			}
-#			
-#			# generate path to save svn dumps to
-#			my $svn_base_dir = $server_backup_dir.'svn/';
-#			print "INFO - saving SVN dumps to $svn_base_dir\n" if $verbose;
-#			
-#			# loop through all the folders of SVN Repos
-#			foreach my $svn_set (sort keys %{$server->{backup_svndump}->{folders}}){
-#			    my $svn_folder = $server->{backup_svndump}->{folders}->{$svn_set};
-#   			print "Backing Up SVN Repos under $svn_folder ...\n";
-#    
-#			    # first get a list of all the repos in this set
-#			    $cout = exec_command(qq{$SSH $server->{sshUsername}\@$server->{fqdn} "$server->{backup_svndump}->{ls} -1 $svn_folder"}, 1);
-#			    my @repos = split /\n/sx, $cout->{stdout};
-#   
-#			    # then loop through all the repos and back them up
-#			    foreach my $repo (@repos){
-#			        my $repo_dir = $svn_folder.$repo.q{/};
-#			        my $dump_file = $server->{remotePaths}->{stagingDir}.$svn_set.q{_}.$repo.q{.svndump};
-#       
-#        			# first dump the repo
-#			        print "\tDumping repo $repo_dir to $dump_file...\n";
-#			        $cout = exec_command(qq{$SSH $server->{sshUsername}\@$server->{fqdn} "$server->{backup_svndump}->{svnadmin} dump $repo_dir --quiet > $dump_file"});
-#        			if($cout->{success}){
-#			            # if that went OK, download it
-#           			print "\tDownloading $dump_file ...\n";
-#			            exec_command("$SCP -q $server->{sshUsername}\@$server->{fqdn}:$dump_file $svn_base_dir");
-#        			}
-#			    }
-#			}
-#			
-#			1; # ensure truthy evaluation on successful execution
-#		}or do{
-#			print "ERROR - failed to process SVN backups with error: $EVAL_ERROR\n";
-#		};
-#		
-#	}else{
-#		print "\nINFO - skipping SVN backup - not configured\n" if $verbose;
-#	}
+	}else{
+		print "\nINFO - skipping SVN backup - not configured\n" if $verbose;
+	}
 }
 
 #
