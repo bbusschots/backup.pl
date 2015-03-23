@@ -225,7 +225,57 @@ foreach my $server (@{$config->{servers}}){
 	}
 
 	# if configured, try rsync backups
-	# TO DO
+	if(defined $server->{backup_rsync} && defined $server->{backup_rsync}->{folders} && ref $server->{backup_rsync}->{folders} eq 'HASH' && scalar keys %{$server->{backup_rsync}->{folders}}){
+		print "\n* Prossing rsync Backups *\n";
+		
+		# try to process the backups
+		eval{
+			# make sure we have all the prerequisites
+			unless(defined $config->{localPaths}->{rsync} && -f $config->{localPaths}->{rsync}){
+				croak(q{local path to rsync not defined});
+			}
+			
+			# generate path to save rsynced folders to, and make sure it exists
+			my $rsync_base_dir = $server_backup_dir.'rsync/';
+			unless(-d $rsync_base_dir){
+				print "Creating folder for storing rsynced folders ...\n";
+				my $cout = exec_command(qq{$MKDIR }.shell_quote($rsync_base_dir));
+				unless($cout->{success}){
+					croak("failed to create folder $rsync_base_dir");
+				}
+			}
+			print "INFO - saving rsynced folders in $rsync_base_dir\n" if $verbose;
+			
+			# loop through all the folders to be rsynced
+			RSYNC_FOLDER:
+			foreach my $rsync_name (sort keys %{$server->{backup_rsync}->{folders}}){
+			    my $rsync_src = $server->{backup_rsync}->{folders}->{$rsync_name};
+			    
+			    # make sure the destination folder to rsync to exists - if not, try create it
+			    my $rsync_dest = $rsync_base_dir.$rsync_name.q{/};
+			    unless(-d $rsync_dest){
+			    	print "Creating folder to rsync $rsync_src to ...\n";
+					my $cout = exec_command(qq{$MKDIR }.shell_quote($rsync_dest));
+					unless($cout->{success}){
+						print "ERROR - failed to create folder $rsync_dest - skipping rsync of $rsync_src\n";
+						next RSYNC_FOLDER;
+					}
+			    }
+			    
+			    # execute the rsync
+	   			print "Rsyncing $rsync_src to $rsync_dest ...\n";
+	   			my $cmd = shell_quote($config->{localPaths}->{rsync}).q{ -avz --delete -e ssh };
+	   			$cmd   .= shell_quote($server->{sshUsername}.q{@}.$server->{fqdn}.q{:}.$rsync_src);
+	   			$cmd   .= q{ }.shell_quote($rsync_dest);
+	   			exec_command($cmd);
+			}
+			1; # ensure truthy evaluation on successful execution
+		}or do{
+			print "ERROR - failed to process rsync backups with error: $EVAL_ERROR\n";
+		};		
+	}else{
+		print "\nINFO - skipping rsync backup - not configured\n" if $verbose;
+	}
 	
 	# if configured, try create and download SVN dumps
 	if(defined $server->{backup_svndump} && defined $server->{backup_svndump}->{folders} && ref $server->{backup_svndump}->{folders} eq 'HASH' && scalar keys %{$server->{backup_svndump}->{folders}}){
@@ -285,8 +335,7 @@ foreach my $server (@{$config->{servers}}){
 			1; # ensure truthy evaluation on successful execution
 		}or do{
 			print "ERROR - failed to process SVN backups with error: $EVAL_ERROR\n";
-		};
-#		
+		};		
 	}else{
 		print "\nINFO - skipping SVN backup - not configured\n" if $verbose;
 	}

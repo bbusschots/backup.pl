@@ -27,6 +27,13 @@
 					"var_www": "/var/www/"
 				}
 			},
+			"backup_rsync": {
+				"folders": {
+					"etc": "/etc/",
+					"var_www": "/var/www/",
+					"home": "/home/"
+				}
+			},
 			"backup_svndump": {
 				"svnadmin": "/usr/bin/svnadmin",
 				"ls": "/bin/ls",

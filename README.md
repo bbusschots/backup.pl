@@ -20,7 +20,8 @@ operations on an arbitrary number of servers:
    running locally on the server. (only one instance of this operation per
    server)
 2. Create `.tar.gz` archives of folders and download them.
-3. Create SVN dumps from folders of SVN repositories and download them.
+3. Clone folders using `rsync` over ssh.
+4. Create SVN dumps from folders of SVN repositories and download them.
 
 This tells you what matters to me - MySQL datatabases, files, and SVN 
 repositories. If you need a different type of backup, you'll either need to
@@ -34,7 +35,7 @@ Firstly, the serer that will be hosting the script, and your backup data, needs
 to meet the following simple requirements:
 1. Be POSIX compliant (Linux, Unix, OS X, or something like Cygwin on
    Windows)
-2. SSH and SCP need to be installed
+2. SSH and SCP need to be installed, and, optionally, rsync with SSH support.
 3. Perl needs to be installed, along with the following Perl modules (all of 
    which are available through CPAN):
    * `Carp`
@@ -58,6 +59,8 @@ The servers being backed up need to meet the following requirements:
      2. The `mysqldump` commandline tool must be installed
    * TAR backups:
      1. The `tar` commandline tool must be installed, and must have gzip support.
+   * rsync backups:
+     1. The destination server has to support rsync over ssh.
    * SVN backups:
      1. the `svnadmin` commandline took must be installed.
 
@@ -118,6 +121,8 @@ a type of backup:
 * `backup_tar` - a hash table containing the information needed to create and
   download `.tar.gz` files from one or more folders on the server. (See the 
   sample config file for details.)
+* `backup_rsync` - a hash table containing the information needed rsync one or 
+  more folders on the server. (See the sample config file for details.)
 * `backup_svndump` - a hash table containing the information needed to create
   and download `.svndump` files for one or more folderes of SVN reposotories.
   (See the sample config file for details.)
