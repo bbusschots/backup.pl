@@ -41,7 +41,12 @@ ENDDESC
 #
 # Define 'global' variables
 #
-my $NUM_ERRORS = 0; # counter for errors while shelling out
+
+# version info
+use version; our $VERSION = qv('0.2');
+
+# counter for errors while shelling out
+my $NUM_ERRORS = 0; 
 
 #
 # Process arguments
@@ -276,7 +281,7 @@ foreach my $server (@{$config->{servers}}){
 			1; # ensure truthy evaluation on successful execution
 		}or do{
 			print "ERROR - failed to process rsync backups with error: $EVAL_ERROR\n";
-		};		
+        };
 	}else{
 		print "\nINFO - skipping rsync backup - not configured\n" if $verbose;
 	}
@@ -339,7 +344,7 @@ foreach my $server (@{$config->{servers}}){
 			1; # ensure truthy evaluation on successful execution
 		}or do{
 			print "ERROR - failed to process SVN backups with error: $EVAL_ERROR\n";
-		};		
+        };
 	}else{
 		print "\nINFO - skipping SVN backup - not configured\n" if $verbose;
 	}
