@@ -159,7 +159,11 @@ foreach my $server (@{$config->{servers}}){
 			my $remote_db_file = $server->{remotePaths}->{stagingDir}.'databases.sql';
 			print "INFO - using remote DB file: $remote_db_file\n" if $verbose;
 			print "Dumping DBs ... \n";
-			my $remote_cmd = shell_quote($server->{backup_MySQL}->{mysqldump}).q{ -u }.shell_quote($server->{backup_MySQL}->{user}).q{ }.shell_quote("--password=$server->{backup_MySQL}->{password}").q{ --all-databases >}.shell_quote($remote_db_file);
+			my $remote_cmd = shell_quote($server->{backup_MySQL}->{mysqldump}).q{ -u }.shell_quote($server->{backup_MySQL}->{user});
+			if($server->{backup_MySQL}->{password}){
+				$remote_cmd .= q{ }.shell_quote("--password=$server->{backup_MySQL}->{password}");
+			}
+			$remote_cmd .= q{ --all-databases >}.shell_quote($remote_db_file);
 			my $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd));
 			if($cout->{success}){
 		    	# copy down the dump
@@ -177,7 +181,7 @@ foreach my $server (@{$config->{servers}}){
 	
 	# if configured, try create and download TAR backups
 	if(defined $server->{backup_tar} && defined $server->{backup_tar}->{folders} && ref $server->{backup_tar}->{folders} eq 'HASH' && scalar keys %{$server->{backup_tar}->{folders}}){
-		print "\n* Prossing TAR Folder Backups *\n";
+		print "\n* Processing TAR Folder Backups *\n";
 		
 		# try to process the backups
 		eval{
@@ -226,7 +230,7 @@ foreach my $server (@{$config->{servers}}){
 
 	# if configured, try rsync backups
 	if(defined $server->{backup_rsync} && defined $server->{backup_rsync}->{folders} && ref $server->{backup_rsync}->{folders} eq 'HASH' && scalar keys %{$server->{backup_rsync}->{folders}}){
-		print "\n* Prossing rsync Backups *\n";
+		print "\n* Processing rsync Backups *\n";
 		
 		# try to process the backups
 		eval{
@@ -279,7 +283,7 @@ foreach my $server (@{$config->{servers}}){
 	
 	# if configured, try create and download SVN dumps
 	if(defined $server->{backup_svndump} && defined $server->{backup_svndump}->{folders} && ref $server->{backup_svndump}->{folders} eq 'HASH' && scalar keys %{$server->{backup_svndump}->{folders}}){
-		print "\n* Prossing SVN Backups *\n";
+		print "\n* Processing SVN Backups *\n";
 		
 		# try to process the backups
 		eval{
