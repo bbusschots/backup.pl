@@ -43,6 +43,7 @@ to meet the following simple requirements:
    * `JSON`
    * `IO::CaptureOutput`
    * `String::ShellQuote`
+   * `version`
 
 The servers being backed up need to meet the following requirements:
 1. Be POSIX compliant
