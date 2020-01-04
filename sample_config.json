@@ -15,10 +15,13 @@
 				"stagingDir": "/var/backupStaging/"
 			},
 			"backup_MySQL": {
-				"dumpAllDBs": true,
+				"dumpDBs": true,
 				"mysqldump": "/usr/bin/mysqldump",
 				"user": "root",
-				"password": "mysql_root_password"
+				"password": "mysql_root_password", // OPTIONAL
+				"host": "some.hostname.fqdn", // OPTIONAL
+				"port": 3306, // OPTIONAL
+				"databases": [ "db1", "db2"] // OPTIONAL - all DBs dumped if not present
 			},
 			"backup_tar": {
 				"tar": "/bin/tar",

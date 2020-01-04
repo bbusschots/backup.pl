@@ -43,7 +43,7 @@ ENDDESC
 #
 
 # version info
-use version; our $VERSION = qv('0.2');
+use version; our $VERSION = qv('0.3');
 
 # counter for errors while shelling out
 my $NUM_ERRORS = 0; 
@@ -147,7 +147,8 @@ foreach my $server (@{$config->{servers}}){
 	#
 	
 	# if configured, try dump the DBs
-	if(defined $server->{backup_MySQL} && $server->{backup_MySQL}->{dumpAllDBs}){
+	# NOTE: for backwards compatability reasons, allow the old dumbAllDBs key as well as the new dumpDBs key
+	if(defined $server->{backup_MySQL} && ($server->{backup_MySQL}->{dumpDBs} || $server->{backup_MySQL}->{dumpAllDBs})){
 		print "\n* Processing MySQL Databases *\n";
 		
 		# try to dump the DBs
@@ -168,7 +169,24 @@ foreach my $server (@{$config->{servers}}){
 			if($server->{backup_MySQL}->{password}){
 				$remote_cmd .= q{ }.shell_quote("--password=$server->{backup_MySQL}->{password}");
 			}
-			$remote_cmd .= q{ --all-databases >}.shell_quote($remote_db_file);
+			if($server->{backup_MySQL}->{host}){
+				$remote_cmd .= q{ -h }.shell_quote($server->{backup_MySQL}->{host});
+			}
+			if($server->{backup_MySQL}->{port}){
+				$remote_cmd .= q{ -P }.shell_quote($server->{backup_MySQL}->{port});
+			}
+			if($server->{backup_MySQL}->{databases} && scalar @{$server->{backup_MySQL}->{databases}}){
+				print "INFO - dumping ONLY SPECIFIED DBs\n" if $verbose;
+				$remote_cmd .= q{ --set-gtid-purged=OFF --databases};
+				foreach my $db (@{$server->{backup_MySQL}->{databases}}){
+					$remote_cmd .= q{ }.shell_quote($db);
+				}
+				$remote_cmd .= q{ -P }.shell_quote($server->{backup_MySQL}->{port});
+			}else{
+				print "INFO - dumping ALL DBs\n" if $verbose;
+				$remote_cmd .= q{ --all-databases}.shell_quote($remote_db_file);
+			}
+			$remote_cmd .= q{ >}.shell_quote($remote_db_file);
 			my $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd));
 			if($cout->{success}){
 		    	# copy down the dump
