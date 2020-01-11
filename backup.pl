@@ -43,7 +43,7 @@ ENDDESC
 #
 
 # version info
-use version; our $VERSION = qv('0.3');
+use version; our $VERSION = version->declare("v0.4");
 
 # counter for errors while shelling out
 my $NUM_ERRORS = 0; 
@@ -148,7 +148,7 @@ foreach my $server (@{$config->{servers}}){
 	
 	# if configured, try dump the DBs
 	# NOTE: for backwards compatability reasons, allow the old dumbAllDBs key as well as the new dumpDBs key
-	if(defined $server->{backup_MySQL} && ($server->{backup_MySQL}->{dumpDBs} || $server->{backup_MySQL}->{dumpAllDBs})){
+	if(defined $server->{backup_MySQL}){
 		print "\n* Processing MySQL Databases *\n";
 		
 		# try to dump the DBs
@@ -175,16 +175,18 @@ foreach my $server (@{$config->{servers}}){
 			if($server->{backup_MySQL}->{port}){
 				$remote_cmd .= q{ -P }.shell_quote($server->{backup_MySQL}->{port});
 			}
-			if($server->{backup_MySQL}->{databases} && scalar @{$server->{backup_MySQL}->{databases}}){
+			if($server->{backup_MySQL}->{dumpAllDBs}){
+				print "INFO - dumping ALL DBs\n" if $verbose;
+				$remote_cmd .= q{ --all-databases};
+			}else{
+				unless($server->{backup_MySQL}->{databases} && scalar @{$server->{backup_MySQL}->{databases}}){
+					croak('no databases specified dumpAllDBs not truthy');
+				}
 				print "INFO - dumping ONLY SPECIFIED DBs\n" if $verbose;
 				$remote_cmd .= q{ --set-gtid-purged=OFF --databases};
 				foreach my $db (@{$server->{backup_MySQL}->{databases}}){
 					$remote_cmd .= q{ }.shell_quote($db);
 				}
-				$remote_cmd .= q{ -P }.shell_quote($server->{backup_MySQL}->{port});
-			}else{
-				print "INFO - dumping ALL DBs\n" if $verbose;
-				$remote_cmd .= q{ --all-databases}.shell_quote($remote_db_file);
 			}
 			$remote_cmd .= q{ >}.shell_quote($remote_db_file);
 			my $cout = exec_command(assemble_ssh_command($server->{sshUsername}, $server->{fqdn}, $remote_cmd));
@@ -291,7 +293,11 @@ foreach my $server (@{$config->{servers}}){
 			    
 			    # execute the rsync
 	   			print "Rsyncing $rsync_src to $rsync_dest ...\n";
-	   			my $cmd = shell_quote($config->{localPaths}->{rsync}).q{ -avz --delete -e ssh };
+	   			my $cmd = shell_quote($config->{localPaths}->{rsync}).q{ -avz --delete};
+	   			if($server->{backup_rsync}->{exclude_pattern}){
+	   				$cmd .= q{ }.shell_quote(q{--exclude=}.$server->{backup_rsync}->{exclude_pattern});
+	   			}
+	   			$cmd   .= q{ -e ssh };
 	   			$cmd   .= shell_quote($server->{sshUsername}.q{@}.$server->{fqdn}.q{:}.$rsync_src);
 	   			$cmd   .= q{ }.shell_quote($rsync_dest);
 	   			exec_command($cmd);
